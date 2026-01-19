@@ -200,6 +200,16 @@ cd "股市信息" && python3 scripts/fetch_market_data.py
    - 将复盘中的重要发现记录到"关键洞察"
    - 整理过往洞察，归类到对应板块
 
+### 第八步：自动同步到 GitHub
+
+**确保重要信息不丢失**，在复盘报告生成并保存后，自动执行同步操作：
+
+```bash
+git add "股市信息/Records/reviews/" "股市信息/Config/Principles.md" "股市信息/Config/Insight.md" "股市信息/Records/trades.md"
+git commit -m "docs: Add review report for YYYY-MM-DD"
+git push
+```
+
 ---
 
 ## 30天/90天验证逻辑

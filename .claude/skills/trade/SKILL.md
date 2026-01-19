@@ -119,6 +119,16 @@ cd "股市信息" && python3 scripts/fetch_market_data.py
    - 如有新发现（如"用户对止盈建议执行很果断"），添加到"关键洞察"
    - 更新"行为模式观察"中的相关判断
 
+### 第八步：自动同步到 GitHub
+
+**确保重要信息不丢失**，在所有文件更新完毕后，自动执行同步操作：
+
+```bash
+git add "股市信息/Records/trades.md" "股市信息/Config/Holdings.md" "股市信息/Config/Insight.md" "股市信息/Config/Context.md"
+git commit -m "feat: Record trade for [标的名称] on YYYY-MM-DD"
+git push
+```
+
 ---
 
 ## 特殊情况处理

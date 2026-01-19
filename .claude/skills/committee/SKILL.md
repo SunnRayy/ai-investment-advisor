@@ -93,6 +93,16 @@ cd "股市信息" && python3 scripts/fetch_market_data.py
 - 将强共识建议记录到 `股市信息/Config/Insight.md` 的“采纳记录”
 - 设置状态为“待采纳”，后续用 `/trade` 验证
 
+### 第六步：自动同步到 GitHub
+
+**确保重要信息不丢失**，在会议结束并生成报告后，自动执行同步操作：
+
+```bash
+git add "股市信息/Committee/Input/" "股市信息/Committee/Opinions/" "股市信息/Committee/Sessions/" "股市信息/Config/Insight.md"
+git commit -m "docs: Add committee session record for YYYY-MM-DD"
+git push
+```
+
 ---
 
 ## 输出格式要求

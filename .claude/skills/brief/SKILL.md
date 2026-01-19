@@ -135,6 +135,16 @@ WebSearch使用场景（仅限以下情况）：
 
 将生成的简报保存到：`股市信息/Daily/YYYY-MM-DD-Brief.md`
 
+### 第七步：自动同步到 GitHub
+
+**确保重要信息不丢失**，在简报生成并保存后，自动执行同步操作：
+
+```bash
+git add "股市信息/Daily/YYYY-MM-DD-Brief.md" "股市信息/Config/Insight.md"
+git commit -m "docs: Add daily brief for YYYY-MM-DD"
+git push
+```
+
 ---
 
 ## 分析原则
