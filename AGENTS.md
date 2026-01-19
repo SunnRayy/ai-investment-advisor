@@ -2,7 +2,7 @@
 
 ## 项目概述
 
-基于 Claude Code 的私人投资分析系统，支持多模型协同决策。
+基于 Antigravity (Gemini 3) 的私人投资分析系统，支持多模型协同决策。
 
 > **Attribution:** This project started from a clone of [https://github.com/AllenAI2014/ai-investment-advisor](https://github.com/AllenAI2014/ai-investment-advisor) and was initially developed by **AllenAI2014**.
 
@@ -11,12 +11,13 @@
 - **必须使用中文回复用户**
 
 **核心功能**：
+
 - 每日投资简报（分析性，非数据罗列）
 - 市场扫描与机会发现
 - 个股深度分析
 - 交易记录与验证
 - 周期性复盘
-- **多模型投资委员会**（Claude + Codex + Gemini）
+- **多模型投资委员会**（Gemini + Claude + Deepseek）
 
 ---
 
@@ -26,7 +27,7 @@
 个人系统/
 ├── AGENTS.md                          # 本文件，系统说明
 ├── 使用手册.md                        # 用户操作手册
-├── .claude/
+├── .agent/
 │   └── skills/
 │       ├── brief/SKILL.md             # /brief 每日简报
 │       ├── scan/SKILL.md              # /scan 市场扫描
@@ -105,16 +106,17 @@
 
 ## Skills 同步规则
 
-- Claude 技能目录：`.claude/skills/`
-- Codex 技能目录：`~/.codex/skills/`（用户目录下）
-- **任何技能新增/修改/删除都必须同步更新两边，保持内容一致**
-- 同步时不影响 Claude 现有技能，仅做镜像或复制到 Codex
+## Skills 同步规则
+
+- Antigravity 技能目录：`.agent/skills/`
+- **所有技能定义以此目录为准**
 
 ### /brief - 每日简报
 
 **触发词**："简报"、"今日市场"、"持仓分析"
 
 **执行流程**：
+
 1. 运行 `fetch_market_data.py` 获取数据
 2. 读取 Holdings.md、Watchlist.md、Profile.md
 3. 从脚本 `news` 字段提取相关快讯（替代 WebSearch）
@@ -126,6 +128,7 @@
 **触发词**："有什么机会"、"推荐"、"扫描市场"
 
 **执行流程**：
+
 1. 读取用户偏好（Profile、Watchlist、Holdings）
 2. 运行 `fetch_market_data.py` 获取数据
 3. 分析指数风格、北向资金、快讯热点
@@ -137,6 +140,7 @@
 **触发词**："分析XX"、"看看XX怎么样"、"XX值得买吗"
 
 **执行流程**：
+
 1. 识别标的代码
 2. 运行 `fetch_market_data.py` 获取价格
 3. 读取持仓配置（判断是否已持有）
@@ -148,6 +152,7 @@
 **触发词**："买了"、"卖了"、"加仓"、"减仓"
 
 **执行流程**：
+
 1. 确认交易信息
 2. 运行脚本验证价格（与当前价偏差不超过5%）
 3. 更新 `trades.md`
@@ -159,6 +164,7 @@
 **触发词**："复盘"、"回顾"、"这周怎么样"
 
 **执行流程**：
+
 1. 读取交易记录和简报
 2. 运行脚本获取最新价格
 3. 验证历史建议准确性（30天/90天验证）
@@ -170,6 +176,7 @@
 **触发词**："开会"、"投资委员会"、"多模型分析"
 
 **执行流程**：
+
 1. 运行脚本获取市场数据
 2. 读取 Context.md 获取持仓上下文
 3. 确定决策问题，生成统一输入文件
@@ -208,6 +215,7 @@
 ### Insight.md 作用
 
 与 Profile.md（用户自述）互补，记录 Claude 通过交互观察到的用户特征：
+
 - **行为模式**：决策特征、买卖习惯
 - **心理画像**：情绪触发点、认知偏差
 - **成长轨迹**：进步记录、待改进事项
@@ -241,7 +249,11 @@
 
 ### 目标
 
-让 Claude、Codex、Gemini 共同读取相同数据，独立分析，提取共识。
+## 多模型协同（已实现）
+
+### 目标
+
+让 Gemini、Claude、Deepseek 共同读取相同数据，独立分析，提取共识。
 
 ### 架构
 
@@ -252,9 +264,9 @@
 └── 决策问题                       - 用户指定的讨论问题
 
 独立观点层
+├── Committee/Opinions/Gemini.md  - Gemini 分析意见
 ├── Committee/Opinions/Claude.md  - Claude 分析意见
-├── Committee/Opinions/Codex.md   - Codex 分析意见
-└── Committee/Opinions/Gemini.md  - Gemini 分析意见
+└── Committee/Opinions/Deepseek.md - Deepseek 分析意见
 
 共识提取层
 ├── 强共识 (3/3一致) → 可考虑直接执行
@@ -265,11 +277,11 @@
 ### 操作流程
 
 1. 用户说"开会"或 `/committee`
-2. Claude 生成统一输入数据，输出自己的分析
-3. 用户复制输入数据到 Cursor/Copilot（获取 Codex 意见）
-4. 用户复制输入数据到 Gemini（获取 Gemini 意见）
-5. 用户返回告诉 Claude "三个都弄好了"
-6. Claude 读取三方意见，提取共识，生成决策汇总
+2. Gemini 生成统一输入数据，输出自己的分析
+3. 用户复制输入数据到 Claude
+4. 用户复制输入数据到 Deepseek
+5. 用户返回告诉 Gemini "三个都弄好了"
+6. Gemini 读取三方意见，提取共识，生成决策汇总
 
 ### 模板文件
 
@@ -282,24 +294,28 @@
 ## 分析原则
 
 ### 1. 不要数据罗列
+
 ```
 ❌ 消费ETF -33.29%
 ✅ 消费ETF深套977天，以旧换新资金主要利好家电汽车对白酒提振有限
 ```
 
 ### 2. 结合用户持仓
+
 ```
 ❌ 铜价创新高，有色板块强势
 ✅ 你11月买入时有色已涨很多，铜价创新高后今日回调，建议止盈一半
 ```
 
 ### 3. 给可操作建议
+
 ```
 ❌ 建议关注
 ✅ 如果回调10%可以考虑加仓，分3次买入
 ```
 
 ### 4. 诚实评估风险
+
 ```
 ❌ 科技方向好，可以买入
 ✅ 科技方向长期正确，但当前估值高位，现在追高风险较大
@@ -341,6 +357,7 @@
 ### 模块开关
 
 在脚本中可配置开启/关闭各模块：
+
 - indices, holdings, watchlist (默认开启)
 - macro, north_flow, news (默认开启)
 - notices (默认关闭，较慢)

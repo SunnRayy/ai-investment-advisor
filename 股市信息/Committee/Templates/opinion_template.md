@@ -1,7 +1,7 @@
 # [模型名称] 投资分析意见
 
 日期: YYYY-MM-DD
-模型: Claude / Codex / Gemini
+模型: Gemini / Claude / Deepseek
 轮次: R1 / R2
 
 ---

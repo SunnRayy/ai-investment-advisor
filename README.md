@@ -1,6 +1,6 @@
 # AI Investment Advisor
 
-> 让 Claude、Codex、Gemini 三个 AI 组成你的私人投资委员会
+> 让 Gemini、Claude、Deepseek 三个 AI 组成你的私人投资委员会
 
 一个基于多模型协同的个人投资分析系统，让普通投资者也能拥有专业机构级别的多维度分析和决策支持。
 
@@ -30,22 +30,25 @@
 
 - Python 3.8+
 - [Obsidian](https://obsidian.md/)（可选，用于笔记管理）
-- [Claude Code](https://claude.ai/) / [Cursor](https://cursor.sh/) / 其他 AI 编程工具
+- [Antigravity](https://gemini.google.com/) (Gemini 3) / [Claude Code](https://claude.ai/)
 
 ### 安装步骤
 
 1. **克隆仓库**
+
 ```bash
 git clone https://github.com/your-username/ai-investment-advisor.git
 cd ai-investment-advisor
 ```
 
-2. **安装 Python 依赖**
+1. **安装 Python 依赖**
+
 ```bash
 pip install akshare pandas
 ```
 
-3. **配置你的持仓**
+1. **配置你的持仓**
+
 ```bash
 # 复制示例配置
 cp -r Config-Example 股市信息/Config
@@ -54,13 +57,14 @@ cp -r Config-Example 股市信息/Config
 vim 股市信息/Config/Holdings.md
 ```
 
-4. **配置 AI 工具**
-- 将 `.claude/skills` 目录复制到你的项目中
-- 如果使用 Codex，将 skills 复制到 `~/.codex/skills/`
+1. **配置 AI 工具**
 
-5. **开始使用**
+- 确保 `.agent/skills` 目录存在于你的项目中 (Antigravity 会自动识别)
+
+1. **开始使用**
+
 ```
-# 在 Claude Code 中
+# 在 Antigravity (Gemini) 中
 "给我今天的简报"
 "开个投委会，讨论下加仓策略"
 ```
@@ -73,7 +77,7 @@ ai-investment-advisor/
 ├── AGENTS.md                    # 系统详细说明
 ├── 使用手册.md                   # 用户操作手册
 │
-├── .claude/
+├── .agent/
 │   └── skills/                  # AI 技能配置
 │       ├── brief/SKILL.md       # 每日简报
 │       ├── scan/SKILL.md        # 市场扫描
@@ -105,7 +109,7 @@ ai-investment-advisor/
                 ↓
     ┌──────────┼──────────┐
     ↓          ↓          ↓
-  Claude    Codex     Gemini
+  Gemini    Claude    Deepseek
     ↓          ↓          ↓
     └──────────┼──────────┘
                 ↓
@@ -137,12 +141,12 @@ ai-investment-advisor/
 
 ### 修改 AI 行为
 
-编辑 `.claude/skills/` 下的 SKILL.md 文件，调整 AI 的分析逻辑。
+编辑 `.agent/skills/` 下的 SKILL.md 文件，调整 AI 的分析逻辑。
 
 ## 风险提示
 
 > ⚠️ **投资有风险，本系统仅供参考，不构成投资建议。**
-> 
+>
 > AI 分析基于历史数据和模型推理，不能预测未来，请结合自身情况独立判断。
 > 所有投资决策由用户自行承担责任。
 
