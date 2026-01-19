@@ -4,6 +4,8 @@
 
 基于 Claude Code 的私人投资分析系统，支持多模型协同决策。
 
+> **Attribution:** This project started from a clone of [https://github.com/AllenAI2014/ai-investment-advisor](https://github.com/AllenAI2014/ai-investment-advisor) and was initially developed by **AllenAI2014**.
+
 ## 回复语言要求
 
 - **必须使用中文回复用户**

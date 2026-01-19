@@ -4,6 +4,8 @@
 
 一个基于多模型协同的个人投资分析系统，让普通投资者也能拥有专业机构级别的多维度分析和决策支持。
 
+**Attribution:** This project started from a clone of [https://github.com/AllenAI2014/ai-investment-advisor](https://github.com/AllenAI2014/ai-investment-advisor) and was initially developed by **AllenAI2014**.
+
 ## 核心理念
 
 1. **数据必须可靠客观** - 所有数据从 AKShare 实时获取，禁止估算
