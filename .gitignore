@@ -1,0 +1,11 @@
+# System
+.DS_Store
+*.log
+tmp/
+
+# Market Data (Temporary)
+*.json
+market_data_*.json
+
+# User specific or sensitive (optional, but good practice)
+.env
