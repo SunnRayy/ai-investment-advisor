@@ -9,3 +9,15 @@ market_data_*.json
 
 # User specific or sensitive (optional, but good practice)
 .env
+
+# Personal Investment Data
+股市信息/Config/
+股市信息/Daily/
+股市信息/Analysis/
+股市信息/Records/
+股市信息/Scan/
+
+# Committee Session Data (Keep Templates)
+股市信息/Committee/Input/
+股市信息/Committee/Opinions/
+股市信息/Committee/Sessions/
