@@ -34,7 +34,8 @@
 │       ├── analyze/SKILL.md           # /analyze 个股分析
 │       ├── trade/SKILL.md             # /trade 交易记录
 │       ├── review/SKILL.md            # /review 周期复盘
-│       └── committee/SKILL.md         # /committee 多模型委员会
+│       ├── committee/SKILL.md         # /committee 多模型委员会
+│       └── sync-upstream/SKILL.md     # /sync-upstream 同步上游代码
 │
 └── 股市信息/
     ├── Config/
@@ -184,6 +185,17 @@
 5. 引导用户获取 Codex、Gemini 意见
 6. 用户返回后汇总三方共识
 7. 保存会议记录到 `Committee/Sessions/`
+
+### /sync-upstream - 核心代码同步
+
+**触发词**："更新版本"、"sync"、"同步代码"
+
+**执行流程**：
+
+1. **安全检查**：校验 Remote (Upstream=AllenAI, Origin=SunnRayy) 和 Branch (main)
+2. **拉取上游**：`git fetch upstream main`
+3. **合并更新**：`git merge upstream/main` (保留 Config/Records 的本地版本)
+4. **推送私有**：`git push origin main`
 
 ---
 

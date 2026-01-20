@@ -23,6 +23,7 @@
 | 交易记录 | `/trade`、"今天买了XX" | 记录交易并追踪建议执行情况 |
 | 周期复盘 | `/review`、"复盘" | 验证建议准确性，总结经验 |
 | 投资委员会 | `/committee`、"开会" | 三个 AI 独立分析后提取共识 |
+| 同步代码 | `/sync-upstream`、"更新" | 从上游拉取更新并同步到私有库 |
 
 ## 快速开始
 
@@ -84,7 +85,8 @@ ai-investment-advisor/
 │       ├── analyze/SKILL.md     # 个股分析
 │       ├── trade/SKILL.md       # 交易记录
 │       ├── review/SKILL.md      # 周期复盘
-│       └── committee/SKILL.md   # 投资委员会
+│       ├── committee/SKILL.md   # 投资委员会
+│       └── sync-upstream/SKILL.md # 同步上游代码
 │
 ├── scripts/
 │   ├── fetch_market_data.py     # 核心数据获取脚本
