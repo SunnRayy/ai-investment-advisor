@@ -390,6 +390,43 @@ def fetch_stock_data(code, market="a"):
         return None
 
 
+
+def fetch_fund_data(code):
+    """获取公募基金已有数据"""
+    log(f"【基金】获取净值数据: {code}")
+    try:
+        # 使用 symbol 参数
+        df = ak.fund_open_fund_info_em(symbol=code, indicator="单位净值走势")
+        
+        if df.empty:
+            return None
+            
+        # 标准化列名
+        rename_map = {
+            '净值日期': 'date',
+            '单位净值': 'close',
+            '日增长率': 'change'
+        }
+        df = df.rename(columns=rename_map)
+        
+        # 格式转换
+        df['date'] = pd.to_datetime(df['date'])
+        df['close'] = pd.to_numeric(df['close'], errors='coerce')
+        df['change'] = pd.to_numeric(df['change'], errors='coerce')
+        
+        # 补充 High/Low/Open/Volume 以兼容技术分析 (全部设为 close/0)
+        df['open'] = df['close']
+        df['high'] = df['close']
+        df['low'] = df['close']
+        df['volume'] = 0.0
+        
+        df = df.sort_values('date')
+        return df
+    except Exception as e:
+        log(f"获取基金净值失败: {e}")
+        return None
+
+
 def analyze_technical(df):
     """技术面分析"""
     result = {}
