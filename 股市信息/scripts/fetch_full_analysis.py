@@ -669,7 +669,7 @@ def calc_final_score(macro, sector, technical):
 
 # ============ 主函数 ============
 
-def full_analysis(code, market="a"):
+def full_analysis(code, market="a", asset_type="stock"):
     """完整分析"""
     result = {
         "metadata": {
@@ -685,10 +685,20 @@ def full_analysis(code, market="a"):
     result["macro"] = fetch_macro_environment()
 
     # 2. 行业分析
-    result["sector"] = fetch_sector_analysis(code)
+    if asset_type == "stock":
+        result["sector"] = fetch_sector_analysis(code)
+    else:
+        result["sector"] = {
+            "relative_strength": "N/A",
+            "sector_flow": [],
+            "note": "公募基金暂不支持行业资金流向分析"
+        }
 
     # 3. 个股/ETF技术面
-    df = fetch_stock_data(code, market)
+    if asset_type == "fund":
+        df = fetch_fund_data(code)
+    else:
+        df = fetch_stock_data(code, market)
     if df is not None and not df.empty:
         result["quote"] = {
             "price": safe_float(df['close'].iloc[-1]),
@@ -726,7 +736,13 @@ def main():
     if code.startswith('0') and len(code) == 5:
         market = "hk"
 
-    result = full_analysis(code, market)
+    asset_type = "stock"
+    if "--type" in sys.argv:
+        idx = sys.argv.index("--type")
+        if idx + 1 < len(sys.argv):
+            asset_type = sys.argv[idx + 1]
+
+    result = full_analysis(code, market, asset_type)
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 
