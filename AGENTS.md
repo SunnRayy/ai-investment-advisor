@@ -97,15 +97,13 @@
 ### 数据真实性原则
 
 1. **价格必须来自脚本**：禁止估算、假设、使用记忆数据
-2. **脚本失败时明确告知**：禁止使用默认值或编造
+2. **脚本失败时明确告知**：禁止使用默认值 or 编造
 3. **来源标注**：所有数据标注来源和获取时间
 4. **时效说明**：提醒用户数据可能有15-30分钟延迟
 
 ---
 
 ## 六大 Skill
-
-## Skills 同步规则
 
 ## Skills 同步规则
 
@@ -178,11 +176,11 @@
 
 **执行流程**：
 
-1. 运行脚本获取市场数据
+1. 运行脚本获取 market 资料
 2. 读取 Context.md 获取持仓上下文
 3. 确定决策问题，生成统一输入文件
-4. Claude 先输出分析意见
-5. 引导用户获取 Codex、Gemini 意见
+4. Antigravity 先输出分析意见
+5. 引导用户获取 Claude、Deepseek 意见
 6. 用户返回后汇总三方共识
 7. 保存会议记录到 `Committee/Sessions/`
 
@@ -226,7 +224,7 @@
 
 ### Insight.md 作用
 
-与 Profile.md（用户自述）互补，记录 Claude 通过交互观察到的用户特征：
+与 Profile.md（用户自述）互补，记录 Antigravity 通过交互观察到的用户特征：
 
 - **行为模式**：决策特征、买卖习惯
 - **心理画像**：情绪触发点、认知偏差
@@ -241,7 +239,7 @@
 | `/review` 复盘 | 总结周期行为模式，更新进步/退步记录 |
 | `/brief` 简报 | 读取 Insight 以个性化提醒，观察用户对建议的反应 |
 | `/committee` 投委会 | 记录用户对多模型共识的采纳情况 |
-| 日常对话 | 捕捉情绪、观点变化、关键洞察 |
+| 日常对话 | 捕捉情绪、观点变化、关键洞考察 |
 
 ### 核心追踪维度
 
@@ -256,10 +254,6 @@
 - 诚实：记录真实观察，不美化也不苛责
 
 ---
-
-## 多模型协同（已实现）
-
-### 目标
 
 ## 多模型协同（已实现）
 
@@ -289,17 +283,17 @@
 ### 操作流程
 
 1. 用户说"开会"或 `/committee`
-2. Gemini 生成统一输入数据，输出自己的分析
+2. Antigravity 生成统一输入数据，输出自己的分析
 3. 用户复制输入数据到 Claude
 4. 用户复制输入数据到 Deepseek
-5. 用户返回告诉 Gemini "三个都弄好了"
-6. Gemini 读取三方意见，提取共识，生成决策汇总
+5. 用户返回告诉 Antigravity "三个都弄好了"
+6. Antigravity 读取三方意见，提取共识，生成决策汇总
 
 ### 模板文件
 
-- `Committee/Templates/prompt_template.md` - 给其他模型的输入提示词
-- `Committee/Templates/opinion_template.md` - 标准观点输出格式
-- `Committee/Templates/consensus_template.md` - 共识汇总格式
+- 提示词模板：`Committee/Templates/prompt_template.md`
+- 观点模板：`Committee/Templates/opinion_template.md`
+- 共识模板：`Committee/Templates/consensus_template.md`
 
 ---
 
@@ -376,4 +370,4 @@
 
 ---
 
-*最后更新：2026-01-14*
+*最后更新：2026-01-23*
