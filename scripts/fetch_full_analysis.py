@@ -373,10 +373,11 @@ def fetch_stock_data(code, market="a"):
             df = ak.stock_hk_hist(symbol=code, period="daily", adjust="qfq")
         elif market == "us":
             try:
-                from us_market import fetch_us_stock_history
-                df = fetch_us_stock_history(code)
+                from us_market import fetch_us_stock_akshare_history
+                # AKShare history already returns dataframe with date, open, close, etc.
+                df = fetch_us_stock_akshare_history(code)
             except ImportError:
-                log("Error: us_market module not found")
+                log("Error: us_market module not found or AKShare failed")
                 return None
         elif code.startswith('5') or code.startswith('1'):
             df = ak.fund_etf_hist_em(symbol=code, period="daily", adjust="qfq")
@@ -531,6 +532,39 @@ def calc_final_score(macro, sector, technical):
         scores["macro"]["score"] += 4
         scores["macro"]["detail"].append("北向资金中性(+4)")
 
+    # US Macro Scoring Override (if present)
+    if "policy" in macro:
+        # Reset macro score first if it was based on CN logic
+        scores["macro"]["score"] = 0
+        scores["macro"]["detail"] = []
+        
+        pmi = macro.get("policy", {}).get("pmi", {})
+        cpi = macro.get("policy", {}).get("cpi", {})
+        rate = macro.get("policy", {}).get("interest_rate", {})
+        
+        # PMI
+        if pmi.get("status") == "Expansion":
+            scores["macro"]["score"] += 8
+            scores["macro"]["detail"].append(f"PMI扩张 {pmi.get('current')}(+8)")
+        else:
+            scores["macro"]["score"] += 2
+            scores["macro"]["detail"].append(f"PMI收缩 {pmi.get('current')}(+2)")
+            
+        # CPI
+        trend = cpi.get("trend")
+        if trend == "Falling":
+            scores["macro"]["score"] += 7
+            scores["macro"]["detail"].append(f"通胀回落 {cpi.get('current')}%(+7)")
+        elif trend == "Stable":
+            scores["macro"]["score"] += 5
+            scores["macro"]["detail"].append("通胀平稳(+5)")
+        else:
+            scores["macro"]["detail"].append("通胀上升(+0)")
+            
+        # Interest Rate (Placeholder logic: purely based on existence for now)
+        scores["macro"]["score"] += 5
+        scores["macro"]["detail"].append(f"基准利率 {rate.get('current')}%(+5)")
+
     # 2. 行业强弱（20分）
     relative = sector.get("relative_strength", "")
     if relative == "领涨":
@@ -654,12 +688,47 @@ def full_analysis(code, market="a"):
 
     # 1. 宏观环境
     if market == "us":
-        # For US, use simplified macro or skip for now
-        result["macro"] = {
-            "market_trend": {"cycle": "N/A", "cycle_score": 0}, 
-            "north_flow": {"direction": "N/A"},
-            "market_sentiment": {"sentiment": "N/A"}
-        }
+        try:
+            from us_market import fetch_us_macro_data, fetch_market_calendar
+            
+            macro_data = fetch_us_macro_data()
+            calendar = fetch_market_calendar()
+            
+            # Map US macro to standard structure
+            result["macro"] = {
+                "market_trend": {
+                    "cycle": "关注联储",
+                    "cycle_score": 0
+                },
+                "policy": {
+                    "interest_rate": macro_data.get('interest_rate'),
+                    "cpi": macro_data.get('cpi'),
+                    "pmi": macro_data.get('pmi')
+                },
+                "employment": {
+                    "unemployment": macro_data.get('unemployment'),
+                    "non_farm": macro_data.get('non_farm')
+                },
+                "calendar_events": calendar
+            }
+            
+            # Simple Scoring Logic based on macro
+            # PMI > 50 (Expansion) +5
+            # CPI Falling +5
+            pmi = macro_data.get('pmi', {})
+            cpi = macro_data.get('cpi', {})
+            score_adj = 0
+            
+            if pmi.get('status') == 'Expansion':
+                score_adj += 5
+            if cpi.get('trend') in ['Falling', 'Stable']:
+                score_adj += 5
+                
+            result["macro"]["market_trend"]["cycle_score"] = score_adj
+            
+        except Exception as e:
+            log(f"Fetch US macro failed: {e}")
+            result["macro"] = {"error": str(e)}
     else:
         result["macro"] = fetch_macro_environment()
 
@@ -682,6 +751,21 @@ def full_analysis(code, market="a"):
             "date": df['date'].iloc[-1].strftime("%Y-%m-%d")
         }
         result["technical"] = analyze_technical(df)
+        
+        # Add fundamental info if US (from spot data)
+        if market == "us":
+            try:
+                from us_market import fetch_us_stock_akshare_spot
+                spot = fetch_us_stock_akshare_spot(code)
+                if spot:
+                    result["fundamental"] = {
+                        "pe_ttm": spot.get("pe_ttm"),
+                        "pb": spot.get("pb"),
+                        "market_cap": spot.get("market_cap")
+                    }
+            except Exception as e:
+                log(f"Fetching fundamentals failed: {e}")
+                
     else:
         result["error"] = "无法获取K线数据"
         return result

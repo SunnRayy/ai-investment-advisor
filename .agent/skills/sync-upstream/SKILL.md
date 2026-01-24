@@ -25,9 +25,15 @@ user-invocable: true
 
 ### 第一步：环境检查
 
-确保工作区干净，避免合并冲突。
+确保工作区干净，避免合并冲突。**特别注意：确保 Config 文件存在且完好。**
 
 ```bash
+# S1: 关键配置检查
+if [ ! -s "股市信息/Config/Holdings.md" ]; then
+    echo "❌ CRITICAL: Holdings.md 在同步前丢失或为空！请先恢复数据再同步。"
+    exit 1
+fi
+
 git status
 ```
 
@@ -78,7 +84,22 @@ git merge upstream/main
 **冲突处理策略**：
 
 - 如果遇到 `Config/` 或 `Records/` 目录下的文件冲突：**始终保留本地版本** (User Data)。
-- 如果遇到代码文件 (`scripts/`, `src/`) 冲突：**人工审查**，通常接受上游修复，但需检查是否覆盖了你的定制逻辑。
+- 如果遇到 `Config/` 或 `Records/` 目录下的文件冲突：**始终保留本地版本** (User Data)。
+- 如果遇到 code 文件 (`scripts/`, `src/`) 冲突：**人工审查**。
+  - **CRITICAL**: `scripts/fetch_market_data.py` 和 `scripts/fetch_full_analysis.py` 已经被深度修改以支持美股。
+  - 如果上游更新了这些文件，**小心合并**。通常应保留本地的 `us_holdings` 和 `macro` 逻辑。
+- 如果遇到 `scripts/us_market.py`：这是本地新增文件，不应有冲突，如果有，那是上游也加了这个（不太可能），保留本地。
+
+```bash
+# S2: 同步后完整性检查
+if [ ! -s "股市信息/Config/Holdings.md" ]; then
+    echo "❌ EMERGENCY: 同步操作似乎清除或重置了配置文件！"
+    echo "请立即执行: git reset --hard ORIG_HEAD (尝试撤销合并)"
+    exit 1
+else
+    echo "✅ Config check passed."
+fi
+```
 
 ### 第四步：推送至私有仓库 (Push)
 

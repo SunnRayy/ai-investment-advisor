@@ -6,6 +6,13 @@
 
 **Attribution:** This project started from a clone of [https://github.com/AllenAI2014/ai-investment-advisor](https://github.com/AllenAI2014/ai-investment-advisor) and was initially developed by **AllenAI2014**.
 
+> **Fork Note (SunnRayy Edition):**
+> This version includes exclusive features not yet in the upstream:
+>
+> - **US Market Support**: Full analysis for US Stocks/ETFs (Price, Fundamentals, RSU tracking).
+> - **Global Macro**: Integration of US economic data (Fed Rate, CPI, PMI) and Global Economic Calendar.
+> - **Enhanced Data Sources**: Multi-source fallback (Finnhub -> AKShare -> YFinance).
+
 ## 核心理念
 
 1. **数据必须可靠客观** - 所有数据从 AKShare 实时获取，禁止估算
@@ -126,8 +133,8 @@ ai-investment-advisor/
 
 ## 数据来源
 
-- **行情数据**: AKShare（A股、港股、ETF、基金）
-- **宏观数据**: AKShare（PMI、CPI、M2）
+- **行情数据**: AKShare（A股、港股、ETF、基金）+ **YFinance/AKShare (美股)**
+- **宏观数据**: AKShare（PMI、CPI、M2、**美联储利率/非农**）+ **Baidu财经日历**
 - **北向资金**: AKShare
 - **新闻快讯**: 财联社电报
 
