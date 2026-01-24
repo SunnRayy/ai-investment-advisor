@@ -37,6 +37,7 @@ MODULES = {
     "news": True,         # 财联社快讯
     "technicals": True,   # 技术指标（MA/RSI/MACD/区间位置）
     "notices": False,     # 公告（较慢，默认关闭）
+    "us_holdings": True,  # 美股持仓
 }
 
 # 技术指标计算窗口
@@ -345,7 +346,10 @@ def enrich_with_technicals(items):
 def parse_holdings_md():
     """从 Holdings.md 解析持仓配置"""
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    holdings_path = os.path.join(script_dir, "..", "Config", "Holdings.md")
+    # Try 股市信息/Config first, then fallback to Config
+    holdings_path = os.path.join(script_dir, "..", "股市信息", "Config", "Holdings.md")
+    if not os.path.exists(holdings_path):
+        holdings_path = os.path.join(script_dir, "..", "Config", "Holdings.md")
 
     holdings_etf = {}
     holdings_stock = {}
@@ -417,12 +421,65 @@ def parse_holdings_md():
     return holdings_etf, holdings_stock, holdings_hk, holdings_fund
 
 
+def parse_us_holdings_md():
+    """从 Holdings.md 解析美股持仓 (## 美股持仓)"""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    # Try 股市信息/Config first, then fallback to Config
+    holdings_path = os.path.join(script_dir, "..", "股市信息", "Config", "Holdings.md")
+    if not os.path.exists(holdings_path):
+        holdings_path = os.path.join(script_dir, "..", "Config", "Holdings.md")
+
+    holdings_us = []
+
+    if not os.path.exists(holdings_path):
+        log(f"警告: Holdings.md 不存在: {holdings_path}")
+        return holdings_us
+
+    with open(holdings_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    # 解析美股持仓 (## 美股持仓)
+    us_match = re.search(r"## 美股持仓[^\n]*\n\s*\|[^\n]+\n\s*\|[-|\s]+\n((?:\|[^\n]+\n)*)", content)
+    if us_match:
+        rows = us_match.group(1).strip().split("\n")
+        for row in rows:
+            cols = [c.strip() for c in row.split("|")[1:-1]]
+            if len(cols) >= 5:
+                # Expected columns: 代码, 名称, 市场, 成本价, 持仓数量, [市值], [买入日期]
+                code = cols[0]
+                name = cols[1]
+                # Skip market column (cols[2])
+                cost_str = cols[3] if len(cols) > 3 else "-"
+                qty_str = cols[4] if len(cols) > 4 else "-"
+                buy_date = cols[6] if len(cols) > 6 and cols[6] != "-" else "2023-01-01"
+
+                try:
+                    cost = float(cost_str) if cost_str and cost_str != "-" else 0
+                    qty = float(qty_str) if qty_str and qty_str != "-" else 0
+                    holdings_us.append({
+                        "code": code,
+                        "name": name,
+                        "cost": cost,
+                        "qty": qty,
+                        "buy_date": buy_date
+                    })
+                except (ValueError, IndexError) as e:
+                    log(f"解析美股持仓失败: {row}, error: {e}")
+                    continue
+
+    log(f"解析到美股持仓: {len(holdings_us)} 只")
+    return holdings_us
+
+
 # ============ 关注池解析 ============
 
 def parse_watchlist_md():
     """从 Watchlist.md 解析关注池"""
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    watchlist_path = os.path.join(script_dir, "..", "Config", "Watchlist.md")
+    # Try 股市信息/Config first, then fallback to Config
+    watchlist_path = os.path.join(script_dir, "..", "股市信息", "Config", "Watchlist.md")
+    if not os.path.exists(watchlist_path):
+        watchlist_path = os.path.join(script_dir, "..", "Config", "Watchlist.md")
 
     watchlist_items = []
     focus_industries = []
@@ -1072,6 +1129,25 @@ def main():
         # 基金
         fund_data = fetch_fund_data(holdings_fund)
         result["holdings"].extend(fund_data)
+
+        # US Holdings (Phase 1)
+        if MODULES["us_holdings"]:
+            try:
+                from us_market import fetch_us_stock_data
+                holdings_us = parse_us_holdings_md()
+                if holdings_us:
+                    us_data = fetch_us_stock_data(holdings_us)
+                    result["us_holdings"] = us_data
+                    log(f"美股数据: 获取到 {len(us_data)} 只")
+                else:
+                    result["us_holdings"] = []
+                    log("美股数据: Holdings.md 无美股持仓或解析失败")
+            except ImportError as e:
+                log(f"美股数据: 模块导入失败 - {e}")
+                result["us_holdings"] = []
+            except Exception as e:
+                log(f"美股数据: 获取失败 - {e}")
+                result["us_holdings"] = []
 
         if MODULES["watchlist"]:
             result["watchlist"] = []
