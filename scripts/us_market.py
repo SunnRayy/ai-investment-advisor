@@ -237,6 +237,51 @@ def fetch_us_stock_data(holdings: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return results
 
 
+def fetch_us_stock_history(ticker: str, days: int = 365) -> Optional[Any]:
+    """
+    Fetch historical K-line data for US stock using yfinance.
+
+    Args:
+        ticker: US stock ticker
+        days: Number of days of history
+
+    Returns:
+        pandas.DataFrame with columns: date, open, close, high, low, volume
+    """
+    try:
+        import yfinance as yf
+        import pandas as pd
+        from datetime import datetime, timedelta
+
+        start_date = (datetime.now() - timedelta(days=days + 60)).strftime("%Y-%m-%d")
+        
+        # Handle RSU prefix
+        if ticker.startswith("RSU_"):
+            ticker = ticker[4:]
+            
+        stock = yf.Ticker(ticker.upper())
+        df = stock.history(start=start_date)
+        
+        if df.empty:
+            return None
+
+        # Standardize columns
+        df = df.reset_index()
+        df.columns = [c.lower() for c in df.columns]
+        df = df.rename(columns={'date': 'date', 'open': 'open', 'close': 'close', 
+                              'high': 'high', 'low': 'low', 'volume': 'volume'})
+        
+        if 'date' in df.columns:
+            df['date'] = pd.to_datetime(df['date']).dt.tz_localize(None)
+            
+        return df.tail(days)
+            
+    except Exception as e:
+        log(f"fetch_us_stock_history error for {ticker}: {e}")
+        return None
+
+
+
 # ============ CLI for standalone testing ============
 
 if __name__ == "__main__":

@@ -12,6 +12,7 @@
     python3 fetch_full_analysis.py 588000           # 完整分析ETF
     python3 fetch_full_analysis.py 002594           # 完整分析A股
     python3 fetch_full_analysis.py 00700 --market hk  # 完整分析港股
+    python3 fetch_full_analysis.py AAPL --market us   # 完整分析美股
 """
 
 import akshare as ak
@@ -370,6 +371,13 @@ def fetch_stock_data(code, market="a"):
     try:
         if market == "hk":
             df = ak.stock_hk_hist(symbol=code, period="daily", adjust="qfq")
+        elif market == "us":
+            try:
+                from us_market import fetch_us_stock_history
+                df = fetch_us_stock_history(code)
+            except ImportError:
+                log("Error: us_market module not found")
+                return None
         elif code.startswith('5') or code.startswith('1'):
             df = ak.fund_etf_hist_em(symbol=code, period="daily", adjust="qfq")
         else:
@@ -645,10 +653,25 @@ def full_analysis(code, market="a"):
     }
 
     # 1. 宏观环境
-    result["macro"] = fetch_macro_environment()
+    if market == "us":
+        # For US, use simplified macro or skip for now
+        result["macro"] = {
+            "market_trend": {"cycle": "N/A", "cycle_score": 0}, 
+            "north_flow": {"direction": "N/A"},
+            "market_sentiment": {"sentiment": "N/A"}
+        }
+    else:
+        result["macro"] = fetch_macro_environment()
 
     # 2. 行业分析
-    result["sector"] = fetch_sector_analysis(code)
+    if market == "us":
+        result["sector"] = {
+             "relative_strength": "N/A",
+             "sector_flow": [],
+             "related_sectors": []
+        }
+    else:
+        result["sector"] = fetch_sector_analysis(code)
 
     # 3. 个股/ETF技术面
     df = fetch_stock_data(code, market)
