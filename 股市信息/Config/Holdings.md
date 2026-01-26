@@ -44,7 +44,7 @@
 | RSU_AMZN | Amazon RSU | 美股 | - | 156 | 3.73 | 2023-10-01 | Cost_Total_CNY:172245 |
 | GOOGL | Alphabet Inc A | 美股 | 295.30 | 13 | 0.43 | 2025-11-01 | Cost_Total_USD:3838.9 |
 | IEF | iShares 7-10 Year Treasury | 美股 | 97.07 | 346 | 3.32 | 2025-11-01 | Cost_Total_USD:33587.04 |
-| SGOV | iShares 0-3 Month Treasury | 美股 | 100.45 | 203 | 2.04 | 2025-12-01 | Cost_Total_USD:20391.5 |
+| SGOV | iShares 0-3 Month Treasury | 美股 | 100.45 | 218 | 2.19 | 2025-12-01 | Cost_Total_USD:21898.97 |
 | AGG | iShares Core US Aggregate | 美股 | 101.18 | 98 | 0.98 | 2025-05-01 | Cost_Total_USD:9916.13 |
 | IBIT | iShares Bitcoin Trust | 美股 | 49.97 | 138 | 0.70 | 2025-12-24 | Cost_Total_USD:6895.75 |
 | FBTC | Fidelity Wise Origin Bitcoin Fund | 美股 | 87.21 | 116 | 0.90 | 2025-12-18 | Cost_Total_USD:10116.57 |
