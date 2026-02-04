@@ -46,6 +46,6 @@
 | IEF | iShares 7-10 Year Treasury | 美股 | 97.07 | 346 | 3.32 | 2025-11-01 | Cost_Total_USD:33587.04 |
 | SGOV | iShares 0-3 Month Treasury | 美股 | 100.47 | 238 | 2.39 | 2026-01-28 | Cost_Total_USD:23911.75 |
 
-| IBIT | iShares Bitcoin Trust | 美股 | 49.97 | 138 | 0.70 | 2025-12-24 | Cost_Total_USD:6895.75 |
+| IBIT | iShares Bitcoin Trust | 美股 | 47.14 | 232 | 1.09 | 2025-12-24 | Cost_Total_USD:10936.43 (加仓 on 2026-02-03) |
 | FBTC | Fidelity Wise Origin Bitcoin Fund | 美股 | 87.21 | 116 | 0.90 | 2025-12-18 | Cost_Total_USD:10116.57 |
 | ETHA | iShares Ethereum Trust | 美股 | 32.16 | 108 | 0.22 | 2026-01-30 | Cost_Total_USD:3473.02 |
