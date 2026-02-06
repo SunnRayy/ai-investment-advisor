@@ -42,10 +42,9 @@
 | 代码 | 名称 | 市场 | 成本价(USD) | 持仓数量 | 市值(万USD) | 买入日期 | 备注 |
 |------|------|------|-------------|----------|-------------|----------|------|
 | RSU_AMZN | Amazon RSU | 美股 | - | 156 | 3.73 | 2023-10-01 | Cost_Total_CNY:172245 |
-| GOOGL | Alphabet Inc A | 美股 | 295.30 | 13 | 0.43 | 2025-11-01 | Cost_Total_USD:3838.9 |
-| IEF | iShares 7-10 Year Treasury | 美股 | 97.07 | 346 | 3.32 | 2025-11-01 | Cost_Total_USD:33587.04 |
-| SGOV | iShares 0-3 Month Treasury | 美股 | 100.47 | 238 | 2.39 | 2026-01-28 | Cost_Total_USD:23911.75 |
-
-| IBIT | iShares Bitcoin Trust | 美股 | 47.14 | 232 | 1.09 | 2025-12-24 | Cost_Total_USD:10936.43 (加仓 on 2026-02-03) |
-| FBTC | Fidelity Wise Origin Bitcoin Fund | 美股 | 87.21 | 116 | 0.90 | 2025-12-18 | Cost_Total_USD:10116.57 |
-| ETHA | iShares Ethereum Trust | 美股 | 32.16 | 108 | 0.22 | 2026-01-30 | Cost_Total_USD:3473.02 |
+| GOOGL | Alphabet Inc A | 美股 | 300.86 | 20 | 0.62 | 2025-11-01 | Cost_Total_USD:6017.15 (加仓 on 2026-02-05) |
+| IEF | iShares 7-10 Year Treasury | 美股 | 97.07 | 172 | 1.65 | 2025-11-01 | Cost_Total_USD:16696.04 (减仓 on 2026-02-04) |
+| SGOV | iShares 0-3 Month Treasury | 美股 | 100.44 | 299 | 3.00 | 2026-02-04 | Cost_Total_USD:30031.56 (减仓 on 2026-02-05) |
+| IBIT | iShares Bitcoin Trust | 美股 | 46.29 | 278 | 1.31 | 2025-12-24 | Cost_Total_USD:12870.27 (加仓 on 2026-02-04) |
+| FBTC | Fidelity Wise Origin Bitcoin Fund | 美股 | 84.73 | 130 | 1.01 | 2025-12-18 | Cost_Total_USD:11015.65 (加仓 on 2026-02-04) |
+| MSFT | Microsoft Corp | 美股 | 402.62 | 5 | 0.20 | 2026-02-05 | Cost_Total_USD:2013.10 |
