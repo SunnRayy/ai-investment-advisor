@@ -31,6 +31,13 @@ cd "股市信息" && python3 scripts/fetch_market_data.py
 - 用户持仓的行情/净值与盈亏（含ETF/A股/港股/基金）
 - 关注池标的行情
 
+**/brief 与 UIS 联动导出（新增约束）**：
+
+- `fetch_market_data.py` 成功执行后，会自动刷新两个文件：
+- `output/holdings_snapshot.json`（美股价格快照，供 UIS `--refresh-prices` 使用）
+- `股市信息/market_data.json`（全量市场数据，`metadata.date` 校正为基金实际净值日期）
+- 若任一导出失败，视为数据获取失败，必须停止后续简报流程并告知用户
+
 ### 第二步：解析脚本输出的数据
 
 脚本JSON输出已包含以下数据模块，**必须全部使用**：
@@ -62,6 +69,7 @@ WebSearch使用场景（仅限以下情况）：
 - `股市信息/Config/Watchlist.md` - 关注方向、投资逻辑
 - `股市信息/Config/Profile.md` - 投资者画像、弱点、改进方向
 - `股市信息/Config/Insight.md` - 用户洞察（用于个性化提醒）
+- `股市信息/Strategy/` - **最新的 Directives 和 Memos**（必须读取最近的一份，确保简报符合当前的大政方针）
 
 **基于 Insight.md 个性化简报**：
 
@@ -143,15 +151,17 @@ WebSearch使用场景（仅限以下情况）：
 
 将生成的简报保存到：`股市信息/Daily/YYYY-MM-DD-Brief.md`
 
-### 第七步：自动同步到 GitHub
+### 第七步：私有数据备份 (Sync Private)
 
-**确保重要信息不丢失**，在简报生成并保存后，自动执行同步操作：
+**严禁**将私有数据（Daily, Insight）推送到公共 GitHub 仓库。
 
-```bash
-git add "股市信息/Daily/YYYY-MM-DD-Brief.md" "股市信息/Config/Insight.md"
-git commit -m "docs: Add daily brief for YYYY-MM-DD"
-git push
+请调用 `/sync-private` skill 将数据安全备份到本地 Obsidian 笔记库：
+
+```text
+/sync-private
 ```
+
+如果必须要提交代码（如修改了 public 目录下的脚本），**必须**确保 `gitignore` 生效，**绝对禁止**使用 `git add -f` 强制添加私有文件。
 
 ---
 
