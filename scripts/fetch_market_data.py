@@ -18,7 +18,7 @@ import json
 import re
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # ============ 配置 ============
 
@@ -563,6 +563,145 @@ def build_watchlist_base(item):
     }
 
 
+# ============ UIS 导出 ============
+
+def _is_us_holding(item):
+    """判断条目是否为美股持仓"""
+    if not isinstance(item, dict):
+        return False
+    market = str(item.get("market", "")).upper()
+    currency = str(item.get("currency", "")).upper()
+    asset_type = str(item.get("type", ""))
+    return market == "US" or currency == "USD" or asset_type == "美股"
+
+
+def _collect_us_holdings(market_json):
+    """收集所有美股候选条目（支持 holdings + us_holdings）"""
+    candidates = []
+    for item in market_json.get("holdings", []):
+        if _is_us_holding(item):
+            candidates.append(item)
+    for item in market_json.get("us_holdings", []):
+        if isinstance(item, dict):
+            candidates.append(item)
+    return candidates
+
+
+def build_holdings_snapshot_payload(market_json, sync_timestamp):
+    """构建 UIS 所需的 output/holdings_snapshot.json"""
+    dedup = {}
+    for item in _collect_us_holdings(market_json):
+        symbol = str(item.get("code") or item.get("symbol") or item.get("ticker") or "").strip()
+        if not symbol:
+            continue
+
+        market_price = safe_float(item.get("market_price", item.get("price")), default=0.0)
+        quantity = safe_float(item.get("quantity", item.get("qty")), default=0.0)
+        avg_cost = safe_float(item.get("avg_cost_local", item.get("cost")), default=0.0)
+        market_value = safe_float(
+            item.get("market_value_usd", item.get("market_value_local")),
+            default=None,
+        )
+        if market_value is None:
+            market_value = round(market_price * quantity, 4)
+
+        dedup[symbol] = {
+            "symbol": symbol,
+            "market": "US",
+            "quantity": quantity,
+            "avg_cost_local": avg_cost,
+            "market_price": market_price,
+            "market_value_usd": market_value,
+            "currency": "USD",
+        }
+
+    return {"sync_timestamp": sync_timestamp, "holdings": list(dedup.values())}
+
+
+def _max_valid_date_str(values):
+    """返回候选日期中的最大有效 YYYY-MM-DD"""
+    parsed = []
+    for value in values:
+        if not value:
+            continue
+        dt = pd.to_datetime(value, errors="coerce")
+        if pd.notna(dt):
+            parsed.append(dt)
+    if not parsed:
+        return ""
+    return max(parsed).strftime("%Y-%m-%d")
+
+
+def derive_fund_trade_date(market_json):
+    """推导基金实际净值日期（nav_date > technicals.as_of > metadata.date）"""
+    holdings = market_json.get("holdings", [])
+    fund_holdings = [item for item in holdings if item.get("type") == "基金"]
+
+    nav_dates = [item.get("nav_date") for item in fund_holdings if item.get("nav_date")]
+    nav_date = _max_valid_date_str(nav_dates)
+    if nav_date:
+        return nav_date
+
+    technical_dates = []
+    for item in fund_holdings:
+        technicals = item.get("technicals", {})
+        if isinstance(technicals, dict):
+            technical_dates.append(technicals.get("as_of"))
+    technical_date = _max_valid_date_str(technical_dates)
+    if technical_date:
+        return technical_date
+
+    metadata_date = market_json.get("metadata", {}).get("date", "")
+    fallback = _max_valid_date_str([metadata_date])
+    if fallback:
+        return fallback
+    return datetime.now().strftime("%Y-%m-%d")
+
+
+def build_market_data_payload(market_json):
+    """构建并修正 股市信息/market_data.json 内容"""
+    payload = json.loads(json.dumps(market_json, ensure_ascii=False))
+    metadata = payload.setdefault("metadata", {})
+    metadata["date"] = derive_fund_trade_date(payload)
+    return payload
+
+
+def _find_project_root():
+    """定位项目根目录（兼容 scripts 与 股市信息/scripts 两种入口）"""
+    current = os.path.dirname(os.path.abspath(__file__))
+    for _ in range(6):
+        if os.path.isdir(os.path.join(current, ".agent")) and os.path.isdir(os.path.join(current, "股市信息")):
+            return current
+        parent = os.path.dirname(current)
+        if parent == current:
+            break
+        current = parent
+    raise RuntimeError("无法定位项目根目录")
+
+
+def export_uis_price_files(market_json, sync_timestamp, project_root=None):
+    """写出 UIS 依赖的两份价格文件"""
+    root = os.path.abspath(project_root) if project_root else _find_project_root()
+    holdings_snapshot_path = os.path.join(root, "output", "holdings_snapshot.json")
+    market_data_path = os.path.join(root, "股市信息", "market_data.json")
+
+    holdings_snapshot = build_holdings_snapshot_payload(market_json, sync_timestamp)
+    market_data_payload = build_market_data_payload(market_json)
+
+    os.makedirs(os.path.dirname(holdings_snapshot_path), exist_ok=True)
+    os.makedirs(os.path.dirname(market_data_path), exist_ok=True)
+
+    with open(holdings_snapshot_path, "w", encoding="utf-8") as f:
+        json.dump(holdings_snapshot, f, ensure_ascii=False, indent=2)
+    with open(market_data_path, "w", encoding="utf-8") as f:
+        json.dump(market_data_payload, f, ensure_ascii=False, indent=2)
+
+    return {
+        "holdings_snapshot_path": holdings_snapshot_path,
+        "market_data_path": market_data_path,
+    }
+
+
 # ============ 数据获取模块 ============
 
 def fetch_indices():
@@ -765,12 +904,16 @@ def fetch_fund_data(holdings_fund):
             latest = df.iloc[-1]
             price = safe_float(latest.get('单位净值', latest.iloc[1] if len(latest) > 1 else 0))
             change = safe_float(latest.get('日增长率', latest.iloc[2] if len(latest) > 2 else 0))
+            nav_date_raw = latest.get('净值日期', latest.iloc[0] if len(latest) > 0 else "")
+            nav_dt = pd.to_datetime(nav_date_raw, errors="coerce")
+            nav_date = nav_dt.strftime("%Y-%m-%d") if pd.notna(nav_dt) else ""
             result.append({
                 "code": code,
                 "name": info["name"],
                 "type": "基金",
                 "price": price,
                 "change": change,
+                "nav_date": nav_date,
                 "cost": info["cost"],
                 "qty": info.get("qty", 0),
                 "pnl": calc_pnl(info["cost"], price),
@@ -1063,6 +1206,8 @@ def fetch_stock_notices(stock_codes):
 # ============ 主函数 ============
 
 def main():
+    fetch_started_at_utc = datetime.now(timezone.utc)
+
     # 从 Holdings.md 读取持仓配置
     holdings_etf, holdings_stock, holdings_hk, holdings_fund = parse_holdings_md()
 
@@ -1185,6 +1330,14 @@ def main():
     if MODULES["notices"]:
         all_codes = list(holdings_stock.keys()) + [code for code in holdings_hk.keys()]
         result["notices"] = fetch_stock_notices(all_codes)
+
+    sync_timestamp = fetch_started_at_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+    try:
+        export_paths = export_uis_price_files(result, sync_timestamp)
+        log(f"UIS 导出完成: {export_paths['holdings_snapshot_path']}, {export_paths['market_data_path']}")
+    except Exception as e:
+        log(f"UIS 导出失败: {e}")
+        sys.exit(1)
 
     # 输出 JSON
     print(json.dumps(result, ensure_ascii=False, indent=2))
