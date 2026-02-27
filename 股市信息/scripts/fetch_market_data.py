@@ -18,7 +18,15 @@ import json
 import re
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+# 加载 .env 文件（供 FINNHUB_API_KEY 等使用）
+try:
+    from dotenv import load_dotenv
+    _env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".env")
+    load_dotenv(dotenv_path=_env_path)
+except ImportError:
+    pass  # dotenv 未安装时忽略，直接读系统环境变量
 
 # ============ 配置 ============
 
@@ -29,6 +37,7 @@ WATCHLIST_ETF = ["588000", "515980", "159995", "512690", "562500"]
 MODULES = {
     "indices": True,      # 指数
     "holdings": True,     # 持仓行情
+    "us_holdings": True,  # 美股持仓（Finnhub/yfinance）
     "watchlist": True,    # 关注池行情
     "macro": True,        # 宏观数据
     "north_flow": True,   # 北向资金
@@ -417,6 +426,57 @@ def parse_holdings_md():
     return holdings_etf, holdings_stock, holdings_hk, holdings_fund
 
 
+def parse_us_holdings_md():
+    """从 Holdings.md 解析美股持仓配置"""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    holdings_path = os.path.join(script_dir, "..", "Config", "Holdings.md")
+    holdings_us = {}
+
+    if not os.path.exists(holdings_path):
+        return holdings_us
+
+    with open(holdings_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    # 解析美股持仓（包含 RSU_AMZN 等特殊代码）
+    us_match = re.search(r"## 美股持仓.*?\n\s*\|[^\n]+\n\s*\|[-|\s]+\n((?:\|[^\n]+\n)*)", content)
+    if us_match:
+        rows = us_match.group(1).strip().split("\n")
+        for row in rows:
+            cols = [c.strip() for c in row.split("|")[1:-1]]
+            # 列: 代码 | 名称 | 市场 | 成本价(USD) | 持仓数量 | 市值(万USD) | 买入日期 | 备注
+            if len(cols) < 5:
+                continue
+            code = cols[0]
+            name = cols[1]
+            cost_str = cols[3]
+            qty_str = cols[4]
+            buy_date = cols[6] if len(cols) > 6 and cols[6] and cols[6] != "-" else "2023-01-01"
+            notes = cols[7] if len(cols) > 7 else ""
+            # 跳过空行或占位行
+            if not code or code == "-" or not name:
+                continue
+            try:
+                # RSU 没有固定成本价，用 0
+                cost = float(cost_str) if cost_str and cost_str not in ("-", "") else 0.0
+                qty = float(qty_str) if qty_str and qty_str not in ("-", "") else 0
+                # 提取 ticker：RSU_AMZN -> AMZN，其余直接用代码
+                ticker = code.split("_")[-1] if "_" in code else code
+                holdings_us[code] = {
+                    "name": name,
+                    "ticker": ticker,
+                    "cost": cost,
+                    "qty": qty,
+                    "buy_date": buy_date,
+                    "notes": notes,
+                    "is_rsu": code.startswith("RSU_"),
+                }
+            except (ValueError, IndexError):
+                continue
+
+    return holdings_us
+
+
 # ============ 关注池解析 ============
 
 def parse_watchlist_md():
@@ -503,6 +563,145 @@ def build_watchlist_base(item):
         "core_metrics": item.get("core_metrics", ""),
         "ideal_buy": item.get("ideal_buy", ""),
         "status": item.get("status", ""),
+    }
+
+
+# ============ UIS 导出 ============ 
+
+def _is_us_holding(item):
+    """判断条目是否为美股持仓"""
+    if not isinstance(item, dict):
+        return False
+    market = str(item.get("market", "")).upper()
+    currency = str(item.get("currency", "")).upper()
+    asset_type = str(item.get("type", ""))
+    return market == "US" or currency == "USD" or asset_type == "美股"
+
+
+def _collect_us_holdings(market_json):
+    """收集所有美股候选条目（支持 holdings + us_holdings）"""
+    candidates = []
+    for item in market_json.get("holdings", []):
+        if _is_us_holding(item):
+            candidates.append(item)
+    for item in market_json.get("us_holdings", []):
+        if isinstance(item, dict):
+            candidates.append(item)
+    return candidates
+
+
+def build_holdings_snapshot_payload(market_json, sync_timestamp):
+    """构建 UIS 所需的 output/holdings_snapshot.json"""
+    dedup = {}
+    for item in _collect_us_holdings(market_json):
+        symbol = str(item.get("code") or item.get("symbol") or item.get("ticker") or "").strip()
+        if not symbol:
+            continue
+
+        market_price = safe_float(item.get("market_price", item.get("price")), default=0.0)
+        quantity = safe_float(item.get("quantity", item.get("qty")), default=0.0)
+        avg_cost = safe_float(item.get("avg_cost_local", item.get("cost")), default=0.0)
+        market_value = safe_float(
+            item.get("market_value_usd", item.get("market_value_local")),
+            default=None,
+        )
+        if market_value is None:
+            market_value = round(market_price * quantity, 4)
+
+        dedup[symbol] = {
+            "symbol": symbol,
+            "market": "US",
+            "quantity": quantity,
+            "avg_cost_local": avg_cost,
+            "market_price": market_price,
+            "market_value_usd": market_value,
+            "currency": "USD",
+        }
+
+    return {"sync_timestamp": sync_timestamp, "holdings": list(dedup.values())}
+
+
+def _max_valid_date_str(values):
+    """返回候选日期中的最大有效 YYYY-MM-DD"""
+    parsed = []
+    for value in values:
+        if not value:
+            continue
+        dt = pd.to_datetime(value, errors="coerce")
+        if pd.notna(dt):
+            parsed.append(dt)
+    if not parsed:
+        return ""
+    return max(parsed).strftime("%Y-%m-%d")
+
+
+def derive_fund_trade_date(market_json):
+    """推导基金实际净值日期（nav_date > technicals.as_of > metadata.date）"""
+    holdings = market_json.get("holdings", [])
+    fund_holdings = [item for item in holdings if item.get("type") == "基金"]
+
+    nav_dates = [item.get("nav_date") for item in fund_holdings if item.get("nav_date")]
+    nav_date = _max_valid_date_str(nav_dates)
+    if nav_date:
+        return nav_date
+
+    technical_dates = []
+    for item in fund_holdings:
+        technicals = item.get("technicals", {})
+        if isinstance(technicals, dict):
+            technical_dates.append(technicals.get("as_of"))
+    technical_date = _max_valid_date_str(technical_dates)
+    if technical_date:
+        return technical_date
+
+    metadata_date = market_json.get("metadata", {}).get("date", "")
+    fallback = _max_valid_date_str([metadata_date])
+    if fallback:
+        return fallback
+    return datetime.now().strftime("%Y-%m-%d")
+
+
+def build_market_data_payload(market_json):
+    """构建并修正 股市信息/market_data.json 内容"""
+    payload = json.loads(json.dumps(market_json, ensure_ascii=False))
+    metadata = payload.setdefault("metadata", {})
+    metadata["date"] = derive_fund_trade_date(payload)
+    return payload
+
+
+def _find_project_root():
+    """定位项目根目录（兼容 scripts 与 股市信息/scripts 两种入口）"""
+    current = os.path.dirname(os.path.abspath(__file__))
+    for _ in range(6):
+        if os.path.isdir(os.path.join(current, ".agent")) and os.path.isdir(os.path.join(current, "股市信息")):
+            return current
+        parent = os.path.dirname(current)
+        if parent == current:
+            break
+        current = parent
+    raise RuntimeError("无法定位项目根目录")
+
+
+def export_uis_price_files(market_json, sync_timestamp, project_root=None):
+    """写出 UIS 依赖的两份价格文件"""
+    root = os.path.abspath(project_root) if project_root else _find_project_root()
+    holdings_snapshot_path = os.path.join(root, "output", "holdings_snapshot.json")
+    market_data_path = os.path.join(root, "股市信息", "market_data.json")
+
+    holdings_snapshot = build_holdings_snapshot_payload(market_json, sync_timestamp)
+    market_data_payload = build_market_data_payload(market_json)
+
+    os.makedirs(os.path.dirname(holdings_snapshot_path), exist_ok=True)
+    os.makedirs(os.path.dirname(market_data_path), exist_ok=True)
+
+    with open(holdings_snapshot_path, "w", encoding="utf-8") as f:
+        json.dump(holdings_snapshot, f, ensure_ascii=False, indent=2)
+    with open(market_data_path, "w", encoding="utf-8") as f:
+        json.dump(market_data_payload, f, ensure_ascii=False, indent=2)
+
+    return {
+        "holdings_snapshot_path": holdings_snapshot_path,
+        "market_data_path": market_data_path,
     }
 
 
@@ -696,6 +895,101 @@ def fetch_hk_stock_data(holdings_hk, watchlist_items=None):
     return holdings_result, watchlist_result
 
 
+def fetch_us_stock_data(holdings_us):
+    """获取美股持仓行情（Finnhub 主源 + yfinance 兜底）"""
+    log("获取美股...")
+    result = []
+    if not holdings_us:
+        return result
+
+    fetch_time = datetime.now().strftime("%H:%M")
+
+    def _fetch_finnhub(ticker):
+        api_key = os.getenv("FINNHUB_API_KEY")
+        if not api_key:
+            return None
+        try:
+            import finnhub
+            client = finnhub.Client(api_key=api_key)
+            q = client.quote(ticker)
+            price = q.get("c")   # current price
+            prev  = q.get("pc")  # previous close
+            if price and price > 0:
+                change_pct = round((price - prev) / prev * 100, 2) if prev and prev > 0 else None
+                return {"price": round(price, 4), "change": change_pct, "source": "Finnhub"}
+        except Exception as e:
+            log(f"Finnhub 获取 {ticker} 失败: {e}")
+        return None
+
+    def _fetch_yfinance(ticker):
+        try:
+            import yfinance as yf
+            t = yf.Ticker(ticker)
+            hist = t.history(period="2d")
+            if hist is None or hist.empty:
+                return None
+            price = float(hist["Close"].iloc[-1])
+            if len(hist) >= 2:
+                prev_close = float(hist["Close"].iloc[-2])
+                change_pct = round((price - prev_close) / prev_close * 100, 2)
+            else:
+                change_pct = None
+            return {"price": round(price, 4), "change": change_pct, "source": "yfinance"}
+        except Exception as e:
+            log(f"yfinance 获取 {ticker} 失败: {e}")
+        return None
+
+    for code, info in holdings_us.items():
+        ticker = info["ticker"]
+        # Finnhub 主源
+        quote = _fetch_finnhub(ticker)
+        # yfinance 兜底
+        if quote is None:
+            quote = _fetch_yfinance(ticker)
+
+        if quote is None:
+            log(f"获取美股失败 {code} ({ticker}): 所有数据源均失败")
+            result.append({
+                "code": code,
+                "name": info["name"],
+                "type": "美股",
+                "ticker": ticker,
+                "price": None,
+                "change": None,
+                "cost": info["cost"],
+                "qty": info["qty"],
+                "pnl": None,
+                "days": calc_days(info["buy_date"]),
+                "is_rsu": info["is_rsu"],
+                "currency": "USD",
+                "fetch_time": fetch_time,
+                "source": "failed",
+            })
+            continue
+
+        price = quote["price"]
+        # RSU 没有固定成本，不计算 pnl
+        pnl = calc_pnl(info["cost"], price) if not info["is_rsu"] and info["cost"] > 0 else None
+        result.append({
+            "code": code,
+            "name": info["name"],
+            "type": "美股",
+            "ticker": ticker,
+            "price": price,
+            "change": quote["change"],
+            "cost": info["cost"],
+            "qty": info["qty"],
+            "pnl": pnl,
+            "days": calc_days(info["buy_date"]),
+            "is_rsu": info["is_rsu"],
+            "currency": "USD",
+            "fetch_time": fetch_time,
+            "source": quote["source"],
+        })
+
+    return result
+
+
 def fetch_fund_data(holdings_fund):
     """获取基金净值数据"""
     log("获取基金...")
@@ -708,12 +1002,16 @@ def fetch_fund_data(holdings_fund):
             latest = df.iloc[-1]
             price = safe_float(latest.get('单位净值', latest.iloc[1] if len(latest) > 1 else 0))
             change = safe_float(latest.get('日增长率', latest.iloc[2] if len(latest) > 2 else 0))
+            nav_date_raw = latest.get('净值日期', latest.iloc[0] if len(latest) > 0 else "")
+            nav_dt = pd.to_datetime(nav_date_raw, errors="coerce")
+            nav_date = nav_dt.strftime("%Y-%m-%d") if pd.notna(nav_dt) else ""
             result.append({
                 "code": code,
                 "name": info["name"],
                 "type": "基金",
                 "price": price,
                 "change": change,
+                "nav_date": nav_date,
                 "cost": info["cost"],
                 "qty": info.get("qty", 0),
                 "pnl": calc_pnl(info["cost"], price),
@@ -1006,10 +1304,13 @@ def fetch_stock_notices(stock_codes):
 # ============ 主函数 ============
 
 def main():
+    fetch_started_at_utc = datetime.now(timezone.utc)
+
     # 从 Holdings.md 读取持仓配置
     holdings_etf, holdings_stock, holdings_hk, holdings_fund = parse_holdings_md()
+    holdings_us = parse_us_holdings_md() if MODULES.get("us_holdings") else {}
 
-    log(f"解析到持仓: ETF={len(holdings_etf)}, A股={len(holdings_stock)}, 港股={len(holdings_hk)}, 基金={len(holdings_fund)}")
+    log(f"解析到持仓: ETF={len(holdings_etf)}, A股={len(holdings_stock)}, 港股={len(holdings_hk)}, 基金={len(holdings_fund)}, 美股={len(holdings_us)}")
 
     # 从 Watchlist.md 读取关注池配置
     watchlist_items, focus_industries, excluded, watchlist_meta = parse_watchlist_md()
@@ -1073,15 +1374,22 @@ def main():
         fund_data = fetch_fund_data(holdings_fund)
         result["holdings"].extend(fund_data)
 
+        # 美股
+        if MODULES.get("us_holdings"):
+            us_data = fetch_us_stock_data(holdings_us)
+            result["holdings"].extend(us_data)
+            result["us_holdings_count"] = len(us_data)
+
         if MODULES["watchlist"]:
             result["watchlist"] = []
             result["watchlist"].extend(etf_watchlist)
             result["watchlist"].extend(a_stock_watchlist)
             result["watchlist"].extend(hk_stock_watchlist)
 
-        # 技术指标
+        # 技术指标（仅对国内资产；美股不走 AKShare 历史数据）
         if MODULES["technicals"]:
-            enrich_with_technicals(result["holdings"])
+            domestic = [h for h in result["holdings"] if h.get("type") != "美股"]
+            enrich_with_technicals(domestic)
             if MODULES["watchlist"] and "watchlist" in result:
                 enrich_with_technicals(result["watchlist"])
 
@@ -1109,6 +1417,14 @@ def main():
     if MODULES["notices"]:
         all_codes = list(holdings_stock.keys()) + [code for code in holdings_hk.keys()]
         result["notices"] = fetch_stock_notices(all_codes)
+
+    sync_timestamp = fetch_started_at_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+    try:
+        export_paths = export_uis_price_files(result, sync_timestamp)
+        log(f"UIS 导出完成: {export_paths['holdings_snapshot_path']}, {export_paths['market_data_path']}")
+    except Exception as e:
+        log(f"UIS 导出失败: {e}")
+        sys.exit(1)
 
     # 输出 JSON
     print(json.dumps(result, ensure_ascii=False, indent=2))
